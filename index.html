@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Scanner - เครื่องมืออ่านตัวเลข</title>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #003d7a 100%);
+            min-height: 100vh;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0066cc 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .method-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .method-btn {
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .method-btn.active {
+            border-color: #0066cc;
+            background: #eff6ff;
+        }
+
+        .method-btn:hover {
+            border-color: #0066cc;
+        }
+
+        .method-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .method-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .method-content {
+            display: none;
+        }
+
+        .method-content.active {
+            display: block;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .instructions h3 {
+            color: #856404;
+            font-size: 15px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .instructions ol, .instructions ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .camera-container {
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video {
+            width: 100%;
+            height: auto;
+            display: none;
+        }
+
+        #canvas {
+            max-width: 100%;
+            height: auto;
+            display: none;
+        }
+
+        .placeholder {
+            color: #999;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .placeholder-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0066cc 0%, #003d7a 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .file-upload-area {
+            border: 3px dashed #d1d5db;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f9fafb;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: #0066cc;
+            background: #eff6ff;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #0066cc;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .result-section {
+            display: none;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            color: white;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .result-value {
+            font-size: 48px;
+            font-weight: 700;
+            text-align: center;
+            margin: 15px 0;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .result-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #4b5563;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            animation: slideInRight 0.3s ease;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .notification.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .notification.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .history {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .history-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e5e7eb;
+        }
+
+        .history-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0066cc;
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .history-copy {
+            background: #e5e7eb;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .history-copy:hover {
+            background: #d1d5db;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>📸</span>
+                <span>OCR Scanner</span>
+            </h1>
+            <p>เครื่องมืออ่านตัวเลขจากภาพ สำหรับ GSP1 System</p>
+        </div>
+
+        <div class="content">
+            <div class="instructions">
+                <h3>💡 แก้ปัญหา Camera Permission</h3>
+                <ul>
+                    <li><strong>วิธีที่ 1:</strong> ใช้กล้องโดยตรง (ต้อง HTTPS)</li>
+                    <li><strong>วิธีที่ 2:</strong> เลือกรูปจากแกลเลอรี่ (ใช้ได้ทุกกรณี) ✅</li>
+                </ul>
+            </div>
+
+            <div class="method-selector">
+                <div class="method-btn" onclick="switchMethod('camera')">
+                    <div class="method-icon">📷</div>
+                    <div class="method-label">ใช้กล้อง</div>
+                </div>
+                <div class="method-btn active" onclick="switchMethod('upload')">
+                    <div class="method-icon">🖼️</div>
+                    <div class="method-label">เลือกรูป</div>
+                </div>
+            </div>
+
+            <!-- Camera Method -->
+            <div id="cameraMethod" class="method-content">
+                <div class="instructions">
+                    <h3>📋 วิธีใช้งานกล้อง</h3>
+                    <ol>
+                        <li>กดปุ่ม "เปิดกล้อง"</li>
+                        <li>จ่อไปที่ตัวเลข</li>
+                        <li>กด "ถ่ายรูป"</li>
+                    </ol>
+                </div>
+
+                <div class="camera-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    <div id="placeholder" class="placeholder">
+                        <div class="placeholder-icon">📷</div>
+                        <p>กดปุ่ม "เปิดกล้อง" เพื่อเริ่มต้น</p>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary" onclick="startCamera()">
+                        <span>📷</span>
+                        <span>เปิดกล้อง</span>
+                    </button>
+                    <button id="captureBtn" class="btn btn-success" onclick="capturePhoto()" disabled>
+                        <span>📸</span>
+                        <span>ถ่ายรูป</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Method -->
+            <div id="uploadMethod" class="method-content active">
+                <div class="instructions">
+                    <h3>📋 วิธีใช้งานเลือกรูป</h3>
+                    <ol>
+                        <li>กดที่พื้นที่อัพโหลดด้านล่าง</li>
+                        <li>เลือก "ถ่ายรูป" หรือ "เลือกจากแกลเลอรี่"</li>
+                        <li>รอระบบอ่านค่าอัตโนมัติ</li>
+                    </ol>
+                </div>
+
+                <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text"><strong>คลิกเพื่อถ่ายรูปหรือเลือกรูป</strong></div>
+                    <div class="upload-subtext">รองรับไฟล์ JPG, PNG</div>
+                </div>
+
+                <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+                
+                <canvas id="uploadCanvas" style="display: none;"></canvas>
+            </div>
+
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">กำลังประมวลผล OCR กรุณารอสักครู่...</div>
+            </div>
+
+            <div id="resultSection" class="result-section">
+                <div class="result-label">✨ ค่าที่อ่านได้</div>
+                <div id="resultValue" class="result-value">-</div>
+                <div class="result-actions">
+                    <button class="btn btn-secondary" onclick="copyToClipboard()" style="font-size: 14px;">
+                        📋 คัดลอก
+                    </button>
+                    <button class="btn btn-warning" onclick="resetScanner()" style="font-size: 14px;">
+                        🔄 สแกนใหม่
+                    </button>
+                </div>
+            </div>
+
+            <div id="history" class="history" style="display: none;">
+                <div class="history-title">📊 ประวัติการสแกน</div>
+                <div id="historyList" class="history-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification">
+        <span id="notificationIcon">✅</span>
+        <span id="notificationText">คัดลอกสำเร็จ!</span>
+    </div>
+
+    <script>
+        let stream = null;
+        let currentValue = null;
+        let scanHistory = [];
+        let currentMethod = 'upload';
+
+        function switchMethod(method) {
+            currentMethod = method;
+            
+            // Update buttons
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.method-btn').classList.add('active');
+            
+            // Update content
+            document.getElementById('cameraMethod').classList.remove('active');
+            document.getElementById('uploadMethod').classList.remove('active');
+            
+            if (method === 'camera') {
+                document.getElementById('cameraMethod').classList.add('active');
+            } else {
+                document.getElementById('uploadMethod').classList.add('active');
+            }
+            
+            resetScanner();
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.style.display = 'block';
+                
+                document.getElementById('placeholder').style.display = 'none';
+                document.getElementById('canvas').style.display = 'none';
+                document.getElementById('resultSection').style.display = 'none';
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('captureBtn').disabled = false;
+                
+            } catch (error) {
+                showNotification('❌ ไม่สามารถเปิดกล้องได้: กรุณาใช้วิธีเลือกรูปแทน', 'error');
+                // Auto switch to upload method
+                setTimeout(() => {
+                    document.querySelectorAll('.method-btn')[1].click();
+                }, 2000);
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+            
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            
+            document.getElementById('captureBtn').disabled = true;
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            processOCR(canvas);
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('uploadCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas size to image size
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // Draw image on canvas
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Process OCR
+                    processOCR(canvas);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Drag and drop support
+        const uploadArea = document.getElementById('fileUploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const input = document.getElementById('fileInput');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+                
+                handleFileSelect({ target: input });
+            }
+        });
+
+        async function processOCR(canvas) {
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'block';
+            document.getElementById('resultSection').style.display = 'none';
+            
+            try {
+                const result = await Tesseract.recognize(
+                    canvas,
+                    'eng',
+                    {
+                        logger: info => {
+                            if (info.status === 'recognizing text') {
+                                console.log('Progress:', Math.round(info.progress * 100) + '%');
+                            }
+                        }
+                    }
+                );
+                
+                let text = result.data.text.trim();
+                console.log('Raw OCR text:', text);
+                
+                // Extract numbers (including decimals)
+                let numbers = text.match(/\d+\.?\d*/g);
+                
+                if (numbers && numbers.length > 0) {
+                    // Get the most prominent number
+                    currentValue = numbers.reduce((a, b) => {
+                        return parseFloat(a) >= parseFloat(b) ? a : b;
+                    });
+                    
+                    document.getElementById('resultValue').textContent = currentValue;
+                    document.getElementById('resultSection').style.display = 'block';
+                    
+                    addToHistory(currentValue);
+                    
+                    showNotification('✅ อ่านค่าสำเร็จ: ' + currentValue, 'success');
+                    
+                    // Auto copy to clipboard
+                    copyToClipboard();
+                } else {
+                    showNotification('❌ ไม่พบตัวเลข กรุณาลองใหม่', 'error');
+                    resetScanner();
+                }
+                
+            } catch (error) {
+                showNotification('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
+                resetScanner();
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function copyToClipboard() {
+            if (!currentValue) return;
+            
+            navigator.clipboard.writeText(currentValue).then(() => {
+                showNotification('✅ คัดลอก ' + currentValue + ' สำเร็จ! นำไป Paste ในหน้า GSP1', 'success');
+            }).catch(err => {
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = currentValue;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    showNotification('✅ คัดลอก ' + currentValue + ' สำเร็จ!', 'success');
+                } catch (e) {
+                    showNotification('❌ กรุณากดปุ่มคัดลอกอีกครั้ง', 'error');
+                }
+                
+                document.body.removeChild(textArea);
+            });
+        }
+
+        function resetScanner() {
+            // Reset camera method
+            document.getElementById('video').style.display = 'none';
+            document.getElementById('canvas').style.display = 'none';
+            document.getElementById('placeholder').style.display = 'block';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('captureBtn').disabled = true;
+            
+            // Reset upload method
+            document.getElementById('fileInput').value = '';
+            
+            // Reset result
+            document.getElementById('resultSection').style.display = 'none';
+            
+            currentValue = null;
+        }
+
+        function addToHistory(value) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            
+            scanHistory.unshift({
+                value: value,
+                time: timeString,
+                timestamp: now.getTime()
+            });
+            
+            if (scanHistory.length > 5) {
+                scanHistory.pop();
+            }
+            
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const historyContainer = document.getElementById('history');
+            const historyList = document.getElementById('historyList');
+            
+            if (scanHistory.length === 0) {
+                historyContainer.style.display = 'none';
+                return;
+            }
+            
+            historyContainer.style.display = 'block';
+            historyList.innerHTML = '';
+            
+            scanHistory.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `
+                    <div>
+                        <div class="history-value">${item.value}</div>
+                        <div class="history-time">${item.time}</div>
+                    </div>
+                    <button class="history-copy" onclick="copyHistoryValue('${item.value}')">
+                        📋 คัดลอก
+                    </button>
+                `;
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        function copyHistoryValue(value) {
+            navigator.clipboard.writeText(value).then(() => {
+                showNotification('✅ คัดลอก ' + value + ' สำเร็จ!', 'success');
+            });
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            const notificationIcon = document.getElementById('notificationIcon');
+            
+            notificationText.textContent = message;
+            notificationIcon.textContent = type === 'success' ? '✅' : '❌';
+            notification.className = 'notification ' + type;
+            notification.style.display = 'flex';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 4000);
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
